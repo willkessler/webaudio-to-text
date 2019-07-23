@@ -59,3 +59,10 @@ typings/
 
 # next.js build output
 .next
+
+# other items
+server/data
+workspaces-*.json
+*~
+public
+.DS_Store
