@@ -5,11 +5,16 @@ const bodyParser = require('body-parser');
 const formidable = require('formidable');
 const path = require('path');
 const fs = require('fs');
-const ffmpeg = require('ffmpeg');
+
+// installed version of the ffmpeg utility, this module is just an npm wrapper around that
+//const ffmpeg = require('ffmpeg');
+
+// emscriptem version of ffmpeg, cf https://github.com/PaulKinlan/ffmpeg.js/tree/wasm, with mp3 support
+//const ffmpeg = require("ffmpeg.js/ffmpeg-mp4.js")
+const ffmpeg = require("ffmpeg.js")
 const speech = require('@google-cloud/speech');
 
 const port = process.env.PORT || 30001;
-
 
 // This will be used to kill the npm process (package.json stop script)
 process.title = "uploader";
@@ -18,16 +23,15 @@ app.use(express.static(path.join(__dirname, '../client')));
 // For ajax post requests
 app.use(bodyParser.json());
 
-async function sendToGoogle(filePath) {
+async function sendFlacToGoogle(filePath) {
   // Creates a google speech client
   const client = new speech.SpeechClient();
 
   const base64Audio = fs.readFileSync(filePath).toString('base64');
   const config = {
     //    encoding: 'OGG_OPUS',
-//    encoding: 'OGG_OPUS',
     encoding: 'FLAC',
-//    sampleRateHertz: 4000,
+    sampleRateHertz: 48000,
     languageCode: 'en-US',
   };
   const audio = {
@@ -47,6 +51,36 @@ async function sendToGoogle(filePath) {
   console.log(`Transcription: ${transcription}`);
 }
 
+async function sendOpusToGoogle(filePath) {
+  // Creates a google speech client
+  const client = new speech.SpeechClient();
+
+  const base64Audio = fs.readFileSync(filePath).toString('base64');
+  const config = {
+    //    encoding: 'OGG_OPUS',
+    encoding: 'OGG_OPUS',
+    sampleRateHertz: 48000,
+    languageCode: 'en-US',
+  };
+  const audio = {
+    content: base64Audio
+  };
+  const request = {
+    config: config,
+    audio: audio,
+  };
+
+  // Detects speech in the audio file
+  //console.log('Sending this to google:', request);
+  const [response] = await client.recognize(request);
+  const transcriptions = response.results
+                                .map(result => result.alternatives[0]);
+  console.log('Full results:', transcriptions);
+  const transcription = response.results
+                                .map(result => result.alternatives[0].transcript)
+                                .join('\n');
+  console.log(`Transcription: ${transcription}`);
+}
 
 app
   .post('/upload', async function (req, res) {
@@ -55,22 +89,27 @@ app
     form.encoding = 'binary';
 
     form.addListener('file', function(name, file) {
-      // do something with uploaded file
-      console.log('got file.path:', file.path);
-      const process = new ffmpeg(file.path);
-      process.then((audio) => {
-        //console.log('got audio.', audio);
-        audio.fnExtractSoundToMP3(__dirname + '/data/out.mp3', (error, file) => {
-          if (!error) {
-            console.log('Audio file:', file);
-          } else {
-            console.log('Got error in fnExtractSoundToMP3:', error);
-          }
-        });
-      }, (error) => {
-        console.log('Error:', error);
+      // console.log('Server got file:', file);
+      // Do something with uploaded file
+      const audioData = new Uint8Array(fs.readFileSync(file.path));
+      const audioFileName = path.basename(file.path);
+      const opusFileName = audioFileName + '.opus';
+      // Encode test video to VP8. Details: https://github.com/PaulKinlan/ffmpeg.js/tree/wasm
+      let stdout = '';
+      let stderr = '';
+      const result = ffmpeg({
+        MEMFS: [{name: audioFileName, data: audioData}],
+        arguments: ["-i", audioFileName, "-ac", "1", "-acodec", "opus", opusFileName],
+        print: function(data) { stdout += data + "\n"; },
+        printErr: function(data) { stderr += data + "\n"; },
+        // Ignore stdin read requests.
+        stdin: function() {},
       });
-      sendToGoogle('data/out.flac');
+      // Write out opus file to disk.
+      const out = result.MEMFS[0];
+      const opusFilePath = 'data/' + out.name;
+      fs.writeFileSync(opusFilePath, Buffer(out.data));
+      sendOpusToGoogle(opusFilePath);
     });
 
     form.addListener('end', function() {

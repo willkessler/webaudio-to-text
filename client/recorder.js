@@ -9,7 +9,7 @@ function handlerFunction(stream) {
   rec.ondataavailable = e => {
     audioChunks.push(e.data);
     if (rec.state == "inactive") {
-      let blob = new Blob(audioChunks,{type:'audio/mpeg-3'});
+      let blob = new Blob(audioChunks,{type:'audio/raw'});
       recordedAudio.src = URL.createObjectURL(blob);
       recordedAudio.controls=true;
       recordedAudio.autoplay=true;
@@ -35,6 +35,7 @@ function handlerFunction(stream) {
     }
   }
 }
+
 
 function sendDataViaForm(blob) {
   const formData = new FormData();
