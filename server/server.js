@@ -10,8 +10,8 @@ const fs = require('fs');
 //const ffmpeg = require('ffmpeg');
 
 // emscriptem version of ffmpeg, cf https://github.com/PaulKinlan/ffmpeg.js/tree/wasm, with mp3 support
-//const ffmpeg = require("ffmpeg.js/ffmpeg-mp4.js")
 const ffmpeg = require("ffmpeg.js")
+const ffmpegMp4 = require("ffmpeg.js/ffmpeg-mp4.js")
 const speech = require('@google-cloud/speech');
 
 const port = process.env.PORT || 30001;
@@ -97,7 +97,7 @@ app
       // Encode test video to VP8. Details: https://github.com/PaulKinlan/ffmpeg.js/tree/wasm
       let stdout = '';
       let stderr = '';
-      const result = ffmpeg({
+      const result1 = ffmpeg({
         MEMFS: [{name: audioFileName, data: audioData}],
         arguments: ["-i", audioFileName, "-ac", "1", "-acodec", "opus", opusFileName],
         print: function(data) { stdout += data + "\n"; },
@@ -105,11 +105,26 @@ app
         // Ignore stdin read requests.
         stdin: function() {},
       });
-      // Write out opus file to disk.
-      const out = result.MEMFS[0];
-      const opusFilePath = 'data/' + out.name;
-      fs.writeFileSync(opusFilePath, Buffer(out.data));
+      const out1 = result1.MEMFS[0];
+      const opusFilePath = 'data/' + out1.name;
+      fs.writeFileSync(opusFilePath, Buffer.from(out1.data));
       sendOpusToGoogle(opusFilePath);
+
+      // Write out mp3 file to disk.
+      const mp3FileName = audioFileName + '.mp3';
+      const result2 = ffmpegMp4({
+        MEMFS: [{name: audioFileName, data: audioData}],
+        arguments: ["-i", audioFileName, "-ac", "1", "-acodec", "mp3", mp3FileName],
+        print: function(data) { stdout += data + "\n"; },
+        printErr: function(data) { stderr += data + "\n"; },
+        // Ignore stdin read requests.
+        stdin: function() {},
+      });
+      // Write out opus file to disk.
+      const out2 = result2.MEMFS[0];
+      const mp3FilePath = 'data/' + out2.name;
+      fs.writeFileSync(mp3FilePath, Buffer.from(out2.data));
+
     });
 
     form.addListener('end', function() {
