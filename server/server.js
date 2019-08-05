@@ -61,6 +61,7 @@ async function sendOpusToGoogle(filePath) {
     encoding: 'OGG_OPUS',
     sampleRateHertz: 48000,
     languageCode: 'en-US',
+    enableWordTimeOffsets: true,
   };
   const audio = {
     content: base64Audio
@@ -74,7 +75,8 @@ async function sendOpusToGoogle(filePath) {
   //console.log('Sending this to google:', request);
   const [response] = await client.recognize(request);
   const transcriptions = response.results
-                                .map(result => result.alternatives[0]);
+                                 .map(result => JSON.stringify(result.alternatives[0].words,null,2))
+                                 .join('\n');
   console.log('Full results:', transcriptions);
   const transcription = response.results
                                 .map(result => result.alternatives[0].transcript)
