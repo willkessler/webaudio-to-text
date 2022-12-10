@@ -14,7 +14,7 @@
     "@google-cloud/speech": "^3.2.2",
     "body-parser": "^1.18.3",
     "ejs": "^2.6.1",
-    "express": "^4.16.3",
+    "express": "^4.17.3",
     "ffmpeg": "0.0.4",
     "ffmpeg.js": "^3.1.9001",
     "formidable": "^1.2.1"
